@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-distribution-service
+  namespace: event-review-platform
+  labels:
+    app: event-distribution-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-distribution-service
+  template:
+    metadata:
+      labels:
+        app: event-distribution-service
+    spec:
+      containers:
+      - name: event-distribution-service
+        # --- IMPORTANT ---
+        # For Minikube Local Testing:
+        # 1. Build the image locally: `docker build -t event-distribution-service:latest .`
+        # 2. Load it into Minikube: `minikube image load event-distribution-service:latest`
+        # 3. Use the image name `event-distribution-service:latest` below.
+        #
+        # For Production/Cloud:
+        # 1. Tag the image: `docker tag event-distribution-service:latest your-registry/event-distribution-service:v1.0.0`
+        # 2. Push the image: `docker push your-registry/event-distribution-service:v1.0.0`
+        # 3. Use the full registry path below, e.g., `your-registry/event-distribution-service:v1.0.0`
+        image: event-distribution-service:latest # Replace with your actual image name/path
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        envFrom:
+          - configMapRef:
+              name: event-distribution-config
+          - secretRef:
+              name: event-distribution-secrets
+        env:
+          # Explicitly define DB connection variables
+          - name: DB_HOST
+            # Use the Kubernetes Service name for the PostgreSQL database
+            value: "postgresql-db.event-review-platform.svc.cluster.local"
+
+        # --- Liveness and Readiness Probes ---
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

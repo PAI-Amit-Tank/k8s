@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-distribution-config
+  namespace: event-review-platform
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  EVENT_ASSIGNMENT_TTL_MINUTES: "30"
+  DEFAULT_BATCH_SIZE: "10"

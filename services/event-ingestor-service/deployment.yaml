@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-ingestor-service
+  namespace: event-review-platform
+  labels:
+    app: event-ingestor-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-ingestor-service
+  template:
+    metadata:
+      labels:
+        app: event-ingestor-service
+    spec:
+      containers:
+      - name: event-ingestor-service
+        # --- IMPORTANT ---
+        # For Minikube Local Testing:
+        # 1. Build the image locally: `docker build -t event-distribution-service:latest .`
+        # 2. Load it into Minikube: `minikube image load event-distribution-service:latest`
+        # 3. Use the image name `event-distribution-service:latest` below.
+        #
+        # For Production/Cloud:
+        # 1. Tag the image: `docker tag event-distribution-service:latest your-registry/event-distribution-service:v1.0.0`
+        # 2. Push the image: `docker push your-registry/event-distribution-service:v1.0.0`
+        # 3. Use the full registry path below, e.g., `your-registry/event-distribution-service:v1.0.0`
+        image: event-ingestor-service:latest # Use the correct image name/tag
+        imagePullPolicy: IfNotPresent # Or Always for production
+        ports:
+        - containerPort: 3001
+        envFrom:
+          # Not loading configMap for now, as it's not needed for POC config
+          # Load ingestor-specific sensitive config
+          - secretRef:
+              name: event-distribution-secrets
+        env:
+          # Explicitly define DB connection variables, sourcing from the *shared* secret
+          - name: DB_HOST
+            value: "postgresql-db.event-review-platform.svc.cluster.local" 
+          - name: DB_PORT
+            value: "5432"
+          # IMPORTANT: using the shared credentials for this POC, for ideal use create a least previlaged creds for each service
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: event-distribution-secrets
+                key: DB_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: event-distribution-secrets
+                key: DB_PASSWORD
+          - name: DB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: event-distribution-secrets
+                key: DB_NAME
+
+        # --- Liveness and Readiness Probes ---
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # --- Resource Requests and Limits (Optional but Recommended) ---
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"

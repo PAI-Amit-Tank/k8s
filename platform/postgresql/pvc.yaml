@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-data-pvc
+  namespace: event-review-platform
+spec:
+  accessModes:
+    - ReadWriteOnce # Can be mounted by a single node (suitable for StatefulSet pod)
+  resources:
+    requests:
+      storage: 1Gi

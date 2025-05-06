@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: event-requeue-job
+  namespace: event-review-platform
+spec:
+  schedule: "*/5 * * * *" # Cron schedule expression (e.g., every 5 minutes)
+  successfulJobsHistoryLimit: 1 # Keep history of 1 successful job
+  failedJobsHistoryLimit: 3    # Keep history of 3 failed jobs
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: curl-trigger
+            image: curlimages/curl:latest
+            imagePullPolicy: IfNotPresent
+            args:
+            - "-X"
+            - "POST"
+            # --- IMPORTANT ---
+            # Use the internal Kubernetes service DNS name:
+            # http://<service-name>.<namespace>.svc.cluster.local:<service-port>/<path>
+            - "http://event-distribution-service.event-review-platform.svc.cluster.local:3000/api/v1/internal/trigger-requeue"
+            # Optional: Add header for internal API key if implemented
+            # - "-H"
+            # - "X-Internal-API-Key: $(INTERNAL_API_KEY)" # Requires injecting key into CronJob pod env
+          # env: # Example if you need to inject the internal API key
+          # - name: INTERNAL_API_KEY
+          #   valueFrom:
+          #     secretKeyRef:
+          #       name: event-distribution-secrets
+          #       key: INTERNAL_API_KEY
+          restartPolicy: OnFailure # Restart the job container if it fails
+      backoffLimit: 1 # Number of retries before marking job as failed
